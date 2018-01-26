@@ -15,17 +15,15 @@ import org.apache.ibatis.migration.MigrationReader;
 
 public class CustomFileMigrationLoader extends FileMigrationLoader {
 
+  protected TreeMap<String, File> scripts;
+
   public CustomFileMigrationLoader(File scriptsDir, String charset, Properties variables) {
     super(scriptsDir, charset, variables);
   }
 
   @Override
   public List<Change> getMigrations() {
-    if (!scriptsDir.exists() || !scriptsDir.isDirectory()) {
-      throw new MigrationException("Scripts directory does not exist.");
-    }
-    TreeMap<String, File> scripts = new TreeMap<>();
-    collectScripts(scripts, scriptsDir);
+    scanScriptsDir();
     List<Change> migrations = new ArrayList<Change>();
     for (String name : scripts.keySet()) {
       migrations.add(parseChangeFromFilename(name));
@@ -35,16 +33,22 @@ public class CustomFileMigrationLoader extends FileMigrationLoader {
 
   @Override
   public Reader getScriptReader(Change change, boolean undo) {
-    if (!scriptsDir.exists() || !scriptsDir.isDirectory()) {
-      throw new MigrationException(scriptsDir + " does not exist or is not a directory.");
-    }
-    TreeMap<String, File> scripts = new TreeMap<>();
-    collectScripts(scripts, scriptsDir);
+    scanScriptsDir();
     File file = scripts.get(change.getFilename());
     try {
       return new MigrationReader(file, charset, undo, variables);
     } catch (IOException e) {
       throw new MigrationException("Error reading " + file, e);
+    }
+  }
+
+  protected void scanScriptsDir() {
+    if (scripts == null) {
+      if (!scriptsDir.exists() || !scriptsDir.isDirectory()) {
+        throw new MigrationException("Scripts directory does not exist.");
+      }
+      scripts = new TreeMap<>();
+      collectScripts(scripts, scriptsDir);
     }
   }
 
